@@ -18,12 +18,46 @@ import * as ImagePicker from 'expo-image-picker';
 
 /* =========================================================
    ATLAS FLEET APP
-   VERSION: 1.14.0 (BUILD: 25)
+   VERSION: 1.15.0 (BUILD: 25)
    ========================================================= */
 
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
 const BUILD_NUMBER = '25';
 const SYNC_API_URL = 'http://192.168.1.100:3000/api/sync';
+
+/* الألوان الأساسية للتطبيق (مطابقة لهوية التطبيق: أحمر / أبيض) */
+const COLOR_PRIMARY = '#C0272D';
+const COLOR_PRIMARY_DARK = '#9E1F24';
+
+/* أيقونات صغيرة وملونة لكل قسم */
+const SERVICE_ICONS: Record<string, string> = {
+  'وقود': '⛽',
+  'زيوت': '🛢️',
+  'إطارات': '🛞',
+  'بطاريات': '🔋',
+  'صيانة وقطع غيار': '🔧',
+  'بنشر': '🛠️',
+  'رحلة': '🧭'
+};
+
+const ADMIN_TAB_ICONS: Record<string, string> = {
+  overview: '📊',
+  requests: '📋',
+  vehicles: '🚚',
+  drivers: '🧑\u200d✈️',
+  link: '🔗',
+  coding: '🏷️',
+  permissions: '🔐',
+  logs: '🗂️',
+  sync: '🔄'
+};
+
+const USER_TAB_ICONS: Record<string, string> = {
+  my_requests: '📋',
+  trips: '🧭',
+  reports: '📈',
+  settings: '⚙️'
+};
 
 type Role = 'user' | 'admin';
 
@@ -312,15 +346,15 @@ export default function App() {
      ========================================================= */
 
   const buildInitialDrivers = (vehicles: Vehicle[]): DriverUser[] => {
-    const names = Array.from(
-      new Set(vehicles.map(v => v.driverName).filter(n => n && n !== 'غير محدد'))
-    );
-    return names.map((n, idx) => ({
-      id: `d_${idx}_${n.replace(/\s+/g, '_')}`,
-      name: n,
-      username: n,
-      password: '000'
-    }));
+    // اسم المستخدم = رقم السيارة (اللوحة)، وكلمة المرور الافتراضية 000
+    return vehicles
+      .filter(v => v.driverName && v.driverName !== 'غير محدد')
+      .map(v => ({
+        id: `d_${v.id}`,
+        name: v.driverName,
+        username: v.plateNumber,
+        password: '000'
+      }));
   };
 
   const [drivers, setDrivers] = useState<DriverUser[]>(buildInitialDrivers(initialVehicles));
@@ -388,7 +422,7 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [userPassword, setUserPassword] = useState('000');
-  const [adminUsername] = useState('admin');
+  const [adminUsername] = useState('ميثاق');
   const [adminPassword, setAdminPassword] = useState('000');
 
   /* =========================================================
@@ -1015,22 +1049,32 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.loginContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="اسم المستخدم"
-            value={loginUsername}
-            onChangeText={setLoginUsername}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="كلمة المرور"
-            value={loginPassword}
-            onChangeText={setLoginPassword}
-            secureTextEntry
-          />
-          <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
-            <Text style={styles.primaryButtonText}>دخول</Text>
-          </TouchableOpacity>
+          <View style={styles.loginLogoCircle}>
+            <Text style={styles.loginLogoText}>🚚</Text>
+          </View>
+          <Text style={styles.loginBrand}>ميثاق</Text>
+          <Text style={styles.loginSubtitle}>تسجيل الدخول لإدارة الأسطول</Text>
+
+          <View style={styles.card}>
+            <TextInput
+              style={styles.input}
+              placeholder="اسم المستخدم (رقم السيارة)"
+              value={loginUsername}
+              onChangeText={setLoginUsername}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="كلمة المرور"
+              value={loginPassword}
+              onChangeText={setLoginPassword}
+              secureTextEntry
+            />
+            <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
+              <Text style={styles.primaryButtonText}>دخول</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.versionText}>{APP_VERSION_DISPLAY}</Text>
         </View>
       </SafeAreaView>
     );
@@ -1057,6 +1101,7 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.header}>
+          <Text style={styles.headerLogo}>🅜</Text>
           <Text style={styles.headerTitle}>لوحة تحكم المسؤول</Text>
           <TouchableOpacity onPress={handleLogout}>
             <Text style={styles.logoutText}>خروج</Text>
@@ -1070,6 +1115,9 @@ export default function App() {
               style={[styles.tabButton, adminSubTab === icon.key && styles.tabButtonActive]}
               onPress={() => setAdminSubTab(icon.key)}
             >
+              <View style={styles.tabIconCircle}>
+                <Text style={styles.tabIconText}>{ADMIN_TAB_ICONS[icon.key]}</Text>
+              </View>
               <Text style={[styles.tabText, adminSubTab === icon.key && styles.tabTextActive]}>
                 {icon.label}
               </Text>
@@ -1584,11 +1632,34 @@ export default function App() {
 
   const myPerm = getUserPermissions(currentDriverId);
 
+  const getGreeting = (): string => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'صباح الخير';
+    if (hour < 17) return 'نهارك سعيد';
+    return 'مساء الخير';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{userVehicle.plateNumber} - {userVehicle.driverName}</Text>
+        <Text style={styles.headerLogo}>🅜</Text>
+        <Text style={styles.headerTitle}>الرئيسية</Text>
+        <TouchableOpacity onPress={handleLogout}>
+          <Text style={styles.logoutText}>خروج</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.greetingCard}>
+        <View style={styles.greetingIconCircle}>
+          <Text style={styles.greetingIconText}>👋</Text>
+        </View>
+        <View>
+          <Text style={styles.greetingTitle}>{getGreeting()}</Text>
+          <Text style={styles.greetingName}>
+            {userVehicle.driverName} - {userVehicle.plateNumber}
+          </Text>
+        </View>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow}>
@@ -1598,6 +1669,9 @@ export default function App() {
             style={[styles.tabButton, currentTab === t.key && styles.tabButtonActive]}
             onPress={() => setCurrentTab(t.key)}
           >
+            <View style={styles.tabIconCircle}>
+              <Text style={styles.tabIconText}>{USER_TAB_ICONS[t.key]}</Text>
+            </View>
             <Text style={[styles.tabText, currentTab === t.key && styles.tabTextActive]}>
               {t.label}
             </Text>
@@ -1616,6 +1690,9 @@ export default function App() {
                   style={[styles.tabButton, serviceSubTab === t && styles.tabButtonActive]}
                   onPress={() => setServiceSubTab(t)}
                 >
+                  <View style={styles.tabIconCircle}>
+                    <Text style={styles.tabIconText}>{SERVICE_ICONS[t]}</Text>
+                  </View>
                   <Text style={[styles.tabText, serviceSubTab === t && styles.tabTextActive]}>
                     {t}
                   </Text>
@@ -2010,7 +2087,12 @@ export default function App() {
         {/* الإعدادات (تعديل 7) */}
         {currentTab === 'settings' && (
           <View>
-            <Text style={styles.sectionTitle}>تغيير كلمة المرور</Text>
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionTitle}>تغيير كلمة المرور</Text>
+              <View style={styles.settingsIconCircle}>
+                <Text style={styles.tabIconText}>🔒</Text>
+              </View>
+            </View>
             <View style={styles.card}>
               <TextInput
                 style={styles.input}
@@ -2037,7 +2119,12 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.sectionTitle}>تعديل بيانات السيارة</Text>
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionTitle}>تعديل بيانات السيارة</Text>
+              <View style={styles.settingsIconCircle}>
+                <Text style={styles.tabIconText}>✏️</Text>
+              </View>
+            </View>
             <View style={styles.card}>
               <TextInput
                 style={styles.input}
@@ -2100,25 +2187,81 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F6FA' },
-  loginContainer: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  loginContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  loginLogoCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FDEAEA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10
+  },
+  loginLogoText: { fontSize: 30 },
+  loginBrand: { color: COLOR_PRIMARY, fontSize: 22, fontWeight: 'bold', marginBottom: 2 },
+  loginSubtitle: { color: '#888', fontSize: 13, marginBottom: 18 },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#1F3C88'
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFEFEF'
   },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  logoutText: { color: '#fff', fontSize: 14 },
+  headerLogo: { fontSize: 20, color: COLOR_PRIMARY },
+  headerTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: 'bold' },
+  logoutText: { color: COLOR_PRIMARY, fontSize: 14, fontWeight: 'bold' },
+  greetingCard: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: '#F0F1F5',
+    borderRadius: 14,
+    marginHorizontal: 12,
+    marginTop: 12,
+    padding: 14
+  },
+  greetingIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12
+  },
+  greetingIconText: { fontSize: 18 },
+  greetingTitle: { color: COLOR_PRIMARY, fontSize: 17, fontWeight: 'bold', textAlign: 'right' },
+  greetingName: { color: '#222', fontSize: 14, fontWeight: 'bold', textAlign: 'right', marginTop: 2 },
   tabsRow: { flexDirection: 'row-reverse', paddingVertical: 8, paddingHorizontal: 8 },
   tabButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     marginHorizontal: 4,
     borderRadius: 20,
     backgroundColor: '#E1E4EE'
   },
-  tabButtonActive: { backgroundColor: '#1F3C88' },
+  tabButtonActive: { backgroundColor: COLOR_PRIMARY },
+  tabIconCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6
+  },
+  tabIconText: { fontSize: 12 },
+  settingsIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FDEAEA',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
   tabText: { color: '#333', fontSize: 13 },
   tabTextActive: { color: '#fff', fontWeight: 'bold' },
   content: { flex: 1, padding: 12 },
@@ -2148,7 +2291,7 @@ const styles = StyleSheet.create({
   },
   multilineInput: { minHeight: 70, textAlignVertical: 'top' },
   primaryButton: {
-    backgroundColor: '#1F3C88',
+    backgroundColor: COLOR_PRIMARY,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -2163,7 +2306,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 6
   },
-  attachButtonText: { color: '#1F3C88', fontWeight: 'bold' },
+  attachButtonText: { color: COLOR_PRIMARY, fontWeight: 'bold' },
   attachmentPreview: { width: '100%', height: 160, borderRadius: 8, marginVertical: 6 },
   approveButton: {
     backgroundColor: '#2E9E5B',
@@ -2188,10 +2331,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     marginVertical: 4
   },
-  chipActive: { backgroundColor: '#1F3C88' },
+  chipActive: { backgroundColor: COLOR_PRIMARY },
   chipText: { color: '#333', fontSize: 12 },
   chipTextActive: { color: '#fff', fontWeight: 'bold' },
-  editText: { color: '#1F3C88', fontWeight: 'bold', marginHorizontal: 6 },
+  editText: { color: COLOR_PRIMARY, fontWeight: 'bold', marginHorizontal: 6 },
   deleteText: { color: '#C0392B', fontWeight: 'bold', marginHorizontal: 6 },
   permOnText: { color: '#2E9E5B', fontWeight: 'bold' },
   permOffText: { color: '#C0392B', fontWeight: 'bold' },
