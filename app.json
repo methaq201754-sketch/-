@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "السيارات - أطلس",
+    "slug": "ycpd-fleet-app",
+    "version": "1.13.0",
+    "orientation": "portrait",
+    "icon": "./icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0d47a1"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.atlas.fleet.ycpd",
+      "versionCode": 24,
+      "adaptiveIcon": {
+        "foregroundImage": "./icon.png",
+        "backgroundColor": "#0d47a1"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "للسماح باختيار صور المرفقات من المعرض",
+          "cameraPermission": "للسماح بالتقاط صور المرفقات"
+        }
+      ]
+    ]
+  }
+}
