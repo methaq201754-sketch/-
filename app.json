@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.atlas.fleet.ycpd",
-      "versionCode": 24,
+      "versionCode": 25,
       "adaptiveIcon": {
         "foregroundImage": "./icon.png",
         "backgroundColor": "#0d47a1"
