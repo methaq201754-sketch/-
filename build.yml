@@ -8,35 +8,151 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+      # =====================================================
+      # 1. تحميل المشروع
+      # =====================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # =====================================================
+      # 2. إعداد Node.js
+      # =====================================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
+      # =====================================================
+      # 3. إعداد Java
+      # =====================================================
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
+      # =====================================================
+      # 4. تثبيت المكتبات
+      # =====================================================
       - name: Install dependencies
         run: npm install
 
-      - name: Generate native Android project
-        run: npx expo prebuild --platform android --no-install
+      # =====================================================
+      # 5. إنشاء مشروع Android نظيف
+      # =====================================================
+      - name: Generate clean native Android project
+        run: npx expo prebuild --clean --platform android --no-install
 
+      # =====================================================
+      # 6. بناء APK
+      # =====================================================
       - name: Build Android APK
         run: |
           cd android
           chmod +x gradlew
+          ./gradlew clean
           ./gradlew assembleRelease --no-daemon
 
+      # =====================================================
+      # 7. فحص وجود APK
+      # =====================================================
+      - name: Check APK
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "ERROR: APK file was not found!"
+            exit 1
+          fi
+
+          echo "========================================"
+          echo "APK FOUND"
+          echo "========================================"
+
+          ls -lh "$APK"
+
+      # =====================================================
+      # 8. حساب SHA256
+      # =====================================================
+      - name: Calculate APK SHA256
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+
+          echo "========================================"
+          echo "APK SHA256"
+          echo "========================================"
+
+          sha256sum "$APK"
+
+      # =====================================================
+      # 9. فحص توقيع APK
+      # =====================================================
+      - name: Verify APK Signature
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" \
+            -name apksigner \
+            | sort -V \
+            | tail -n 1)
+
+          if [ -z "$APKSIGNER" ]; then
+            echo "ERROR: apksigner was not found!"
+            exit 1
+          fi
+
+          echo "========================================"
+          echo "APK SIGNATURE VERIFICATION"
+          echo "========================================"
+
+          "$APKSIGNER" verify --verbose "$APK"
+
+      # =====================================================
+      # 10. فحص معلومات APK
+      # =====================================================
+      - name: Inspect APK
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+
+          AAPT=$(find "$ANDROID_HOME/build-tools" \
+            -name aapt \
+            | sort -V \
+            | tail -n 1)
+
+          if [ -z "$AAPT" ]; then
+            echo "ERROR: aapt was not found!"
+            exit 1
+          fi
+
+          echo "========================================"
+          echo "APK PACKAGE INFORMATION"
+          echo "========================================"
+
+          "$AAPT" dump badging "$APK" | head -n 20
+
+      # =====================================================
+      # 11. عرض ملفات APK الناتجة
+      # =====================================================
+      - name: List APK output
+        run: |
+          echo "========================================"
+          echo "APK OUTPUT FILES"
+          echo "========================================"
+
+          find android/app/build/outputs/apk \
+            -type f \
+            -name "*.apk" \
+            -exec ls -lh {} \;
+
+      # =====================================================
+      # 12. رفع APK إلى GitHub
+      # =====================================================
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
