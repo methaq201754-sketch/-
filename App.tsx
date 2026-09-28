@@ -18,11 +18,11 @@ import * as ImagePicker from 'expo-image-picker';
 
 /* =========================================================
    ATLAS FLEET APP
-   VERSION: 1.15.0 (BUILD: 25)
+   VERSION: 1.15.0 (BUILD: 26)
    ========================================================= */
 
 const APP_VERSION = '1.15.0';
-const BUILD_NUMBER = '25';
+const BUILD_NUMBER = '26';
 const SYNC_API_URL = 'http://192.168.1.100:3000/api/sync';
 
 /* الألوان الأساسية للتطبيق (مطابقة لهوية التطبيق: أحمر / أبيض) */
