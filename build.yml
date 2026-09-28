@@ -1,4 +1,4 @@
-name: Build Android APK
+Name: Build Android APK
 
 on:
   push:
@@ -47,21 +47,21 @@ jobs:
         run: npx expo prebuild --clean --platform android --no-install
 
       # =====================================================
-      # 6. بناء APK
+      # 6. بناء APK (تعديل إلى Debug لتوقيعه تلقائياً)
       # =====================================================
       - name: Build Android APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew clean
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleDebug --no-daemon
 
       # =====================================================
       # 7. فحص وجود APK
       # =====================================================
       - name: Check APK
         run: |
-          APK="android/app/build/outputs/apk/release/app-release.apk"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
             echo "ERROR: APK file was not found!"
@@ -79,7 +79,7 @@ jobs:
       # =====================================================
       - name: Calculate APK SHA256
         run: |
-          APK="android/app/build/outputs/apk/release/app-release.apk"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
           echo "========================================"
           echo "APK SHA256"
@@ -92,7 +92,7 @@ jobs:
       # =====================================================
       - name: Verify APK Signature
         run: |
-          APK="android/app/build/outputs/apk/release/app-release.apk"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" \
             -name apksigner \
@@ -115,7 +115,7 @@ jobs:
       # =====================================================
       - name: Inspect APK
         run: |
-          APK="android/app/build/outputs/apk/release/app-release.apk"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
           AAPT=$(find "$ANDROID_HOME/build-tools" \
             -name aapt \
@@ -153,6 +153,6 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
