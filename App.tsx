@@ -18,11 +18,11 @@ import * as ImagePicker from 'expo-image-picker';
 
 /* =========================================================
    ATLAS FLEET APP
-   VERSION: 1.17.0 (BUILD: 28)
+   VERSION: 1.18.0 (BUILD: 29)
    ========================================================= */
 
-const APP_VERSION = '1.17.0';
-const BUILD_NUMBER = '28';
+const APP_VERSION = '1.18.0';
+const BUILD_NUMBER = '29';
 const SYNC_API_URL = 'http://192.168.1.100:3000/api/sync';
 
 /* الألوان الأساسية للتطبيق (مطابقة لهوية التطبيق: أحمر / أبيض) */
@@ -41,6 +41,8 @@ const SERVICE_ICONS: Record<string, string> = {
   'زيوت': '🛢️',
   'إطارات': '🛞',
   'بطاريات': '🔋',
+  'صيانة': '🔧',
+  'قطع غيار': '🧰',
   'صيانة وقطع غيار': '🔧',
   'بنشر': '🛠️',
   'رحلة': '🧭'
@@ -71,7 +73,7 @@ const TAB_COLORS: Record<string, string> = {
   permissions: '#8E44AD', logs: '#607D8B', sync: '#00A3FF',
   my_requests: COLOR_PRIMARY, trips: COLOR_INFO, reports: COLOR_SUCCESS, settings: '#6C63FF',
   'وقود': '#F39C12', 'زيوت': '#795548', 'إطارات': '#34495E', 'بطاريات': '#27AE60',
-  'صيانة وقطع غيار': '#E74C3C', 'بنشر': '#9B59B6', 'رحلة': '#2980B9'
+  'صيانة': '#E74C3C', 'قطع غيار': '#D35400', 'صيانة وقطع غيار': '#E74C3C', 'بنشر': '#9B59B6', 'رحلة': '#2980B9'
 };
 
 type Role = 'user' | 'admin';
@@ -83,6 +85,8 @@ type RequestType =
   | 'زيوت'
   | 'إطارات'
   | 'بطاريات'
+  | 'صيانة'
+  | 'قطع غيار'
   | 'صيانة وقطع غيار'
   | 'بنشر'
   | 'رحلة';
@@ -106,6 +110,8 @@ interface ServiceRequest {
   station?: string;
   fuelType?: string;
   oilType?: string;
+  oilUnit?: string;
+  client?: string;
   prevOdometer?: string;
   currentOdometer?: string;
   distanceTraveled?: string;
@@ -133,6 +139,8 @@ interface CodeCategories {
   fuelTypes: string[];
   maintenanceTypes: string[];
   punctureServices: string[];
+  oilUnits: string[];
+  clients: string[];
   tripRegions: string[];
 }
 
@@ -406,8 +414,10 @@ export default function App() {
     stations: ['محطة الزبيدي', 'محطة الشركة', 'محطة الأمل'],
     tires: ['إطار 22.5', 'إطار 16'],
     fuelTypes: ['ديزل', 'بنزين ممتاز', 'بنزين عادي'],
-    maintenanceTypes: ['صيانة دورية', 'صيانة كهرباء', 'صيانة ميكانيكا', 'قطع غيار'],
+    maintenanceTypes: ['صيانة دورية', 'صيانة كهرباء', 'صيانة ميكانيكا'],
     punctureServices: ['تركيب إطار', 'إصلاح بنشر', 'ترصيص', 'تبديل إطار'],
+    oilUnits: ['علبة', 'جالون', 'دبة'],
+    clients: ['الشركة', 'مصنع الطلاء', 'الورشة', 'الجهات الخارجية'],
     tripRegions: ['تعز', 'صنعاء', 'الحديدة', 'عدن', 'إب', 'ذمار', 'رداع']
   });
 
@@ -451,6 +461,9 @@ export default function App() {
   const [reqStation, setReqStation] = useState('');
   const [reqFuelType, setReqFuelType] = useState('');
   const [reqOilType, setReqOilType] = useState('');
+  const [reqOilUnit, setReqOilUnit] = useState('');
+  const [reqClient, setReqClient] = useState('');
+  const [oilUnitModalVisible, setOilUnitModalVisible] = useState(false);
   const [reqPrevOdometer, setReqPrevOdometer] = useState('0');
   const [reqCurrentOdometer, setReqCurrentOdometer] = useState('');
   const [reqDistanceTraveled, setReqDistanceTraveled] = useState('0');
@@ -487,7 +500,18 @@ export default function App() {
 
       if (savedRequests) setRequests(JSON.parse(savedRequests));
       if (savedVehicles) setAllVehicles(JSON.parse(savedVehicles));
-      if (savedCodes) setCodes(JSON.parse(savedCodes));
+      if (savedCodes) {
+        const parsedCodes = JSON.parse(savedCodes);
+        setCodes(prev => ({
+          ...prev,
+          ...parsedCodes,
+          maintenanceTypes: Array.isArray(parsedCodes.maintenanceTypes)
+            ? parsedCodes.maintenanceTypes.filter((x: string) => x !== 'قطع غيار')
+            : prev.maintenanceTypes,
+          oilUnits: Array.isArray(parsedCodes.oilUnits) ? parsedCodes.oilUnits : prev.oilUnits,
+          clients: Array.isArray(parsedCodes.clients) ? parsedCodes.clients : prev.clients
+        }));
+      }
       if (savedPrices) setItemPrices(JSON.parse(savedPrices));
       if (savedLogs) setAuditLogs(JSON.parse(savedLogs));
       if (savedLastSync) setLastSyncDate(savedLastSync);
@@ -595,15 +619,20 @@ export default function App() {
   /* =========================================================
      تعبئة العداد السابق تلقائياً للزيوت (تعديل 5)
      ========================================================= */
+  const getNextOilProcessNumber = (): string => {
+    const oilNumbers = requests
+      .filter(r => r.vehicleId === userVehicle.id && r.type === 'زيوت')
+      .map(r => parseInt(r.processNumber, 10))
+      .filter(n => !isNaN(n));
+    return String((oilNumbers.length ? Math.max(...oilNumbers) : 0) + 1);
+  };
+
   useEffect(() => {
     if (serviceSubTab === 'زيوت') {
+      setReqProcessNo(getNextOilProcessNumber());
       const oilReqs = requests.filter(r => r.vehicleId === userVehicle.id && r.type === 'زيوت');
-      if (oilReqs.length > 0) {
-        const lastOilReq = oilReqs[0]; // أحدث طلب
-        if (lastOilReq.currentOdometer) {
-          setReqPrevOdometer(lastOilReq.currentOdometer);
-        }
-      }
+      const lastOilReq = oilReqs[0];
+      setReqPrevOdometer(lastOilReq?.currentOdometer || '0');
     }
   }, [serviceSubTab, requests, userVehicle]);
 
@@ -615,7 +644,13 @@ export default function App() {
     if (serviceSubTab === 'زيوت') return reqOilType;
     if (serviceSubTab === 'إطارات') return reqAllocation; // اسم الإطار المختار يوضع في reqAllocation في شاشة الإطارات
     if (serviceSubTab === 'بطاريات') return reqAllocation; // اسم البطارية المختارة
+    if (serviceSubTab === 'قطع غيار') return reqStation;
     return '';
+  };
+
+  const getSelectedUnitPrice = (): string => {
+    const selectedItem = getSelectedItemForPrice();
+    return selectedItem && itemPrices[selectedItem] ? itemPrices[selectedItem] : '';
   };
 
   const handleQuantityChange = (val: string) => {
@@ -705,6 +740,8 @@ export default function App() {
     setReqStation('');
     setReqFuelType('');
     setReqOilType('');
+    setReqOilUnit('');
+    setReqClient('');
     setReqCurrentOdometer('');
     setReqDistanceTraveled('0');
     setReqAttachmentUri(null);
@@ -712,15 +749,20 @@ export default function App() {
   };
 
   const handleSubmitRequest = async () => {
-    if (!reqProcessNo.trim() || !reqQuantity.trim()) {
+    const processNo = serviceSubTab === 'زيوت' ? getNextOilProcessNumber() : reqProcessNo.trim();
+    if (!processNo || !reqQuantity.trim()) {
       Alert.alert('تنبيه', 'الرجاء تعبئة رقم العملية والكمية على الأقل');
+      return;
+    }
+    if (serviceSubTab === 'زيوت' && (!reqOilType || !reqOilUnit || !reqClient)) {
+      Alert.alert('تنبيه', 'الرجاء اختيار نوع الزيت ووحدة الكمية واسم العميل');
       return;
     }
 
     const newRequest: ServiceRequest = {
       id: `REQ-${Date.now()}`,
       type: serviceSubTab,
-      processNumber: reqProcessNo,
+      processNumber: processNo,
       date: new Date().toLocaleString('ar-YE'),
       quantity: reqQuantity,
       priceAmount: reqPriceAmount,
@@ -728,6 +770,8 @@ export default function App() {
       station: reqStation,
       fuelType: reqFuelType,
       oilType: reqOilType,
+      oilUnit: reqOilUnit,
+      client: reqClient,
       prevOdometer: reqPrevOdometer,
       currentOdometer: reqCurrentOdometer,
       distanceTraveled: reqDistanceTraveled,
@@ -1064,32 +1108,25 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.loginContainer}>
-          <View style={styles.loginLogoCircle}>
-            <Text style={styles.loginLogoText}>🚚</Text>
-          </View>
-          <Text style={styles.loginBrand}>ميثاق</Text>
-          <Text style={styles.loginSubtitle}>تسجيل الدخول لإدارة الأسطول</Text>
-
-          <View style={styles.card}>
+          <View style={styles.loginCard}>
             <TextInput
-              style={styles.input}
-              placeholder="اسم المستخدم (رقم السيارة)"
+              style={styles.loginInput}
+              placeholder="اسم المستخدم"
               value={loginUsername}
               onChangeText={setLoginUsername}
+              autoCapitalize="none"
             />
             <TextInput
-              style={styles.input}
+              style={styles.loginInput}
               placeholder="كلمة المرور"
               value={loginPassword}
               onChangeText={setLoginPassword}
               secureTextEntry
             />
-            <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
+            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
               <Text style={styles.primaryButtonText}>دخول</Text>
             </TouchableOpacity>
           </View>
-
-          <Text style={styles.versionText}>{APP_VERSION_DISPLAY}</Text>
         </View>
       </SafeAreaView>
     );
@@ -1123,22 +1160,36 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow}>
+        <View style={styles.adminGreetingCard}>
+          <View style={styles.greetingIconCircle}>
+            <Text style={styles.greetingIconText}>👋</Text>
+          </View>
+          <View>
+            <Text style={styles.greetingTitle}>مساء الخير</Text>
+            <Text style={styles.greetingName}>ميثاق</Text>
+          </View>
+        </View>
+
+        <View style={styles.adminMenuGrid}>
           {adminIcons.map(icon => (
             <TouchableOpacity
               key={icon.key}
-              style={[styles.tabButton, adminSubTab === icon.key && styles.tabButtonActive]}
+              style={[styles.adminMenuCard, adminSubTab === icon.key && styles.adminMenuCardActive]}
               onPress={() => setAdminSubTab(icon.key)}
+              activeOpacity={0.85}
             >
-              <View style={[styles.tabIconCircle, { backgroundColor: TAB_COLORS[icon.key] || COLOR_PRIMARY }]}>
-                <Text style={styles.tabIconText}>{ADMIN_TAB_ICONS[icon.key]}</Text>
+              <View style={[styles.adminMenuIcon, { backgroundColor: `${TAB_COLORS[icon.key] || COLOR_PRIMARY}18` }]}>
+                <Text style={styles.adminMenuIconText}>{ADMIN_TAB_ICONS[icon.key]}</Text>
               </View>
-              <Text style={[styles.tabText, adminSubTab === icon.key && styles.tabTextActive]}>
+              <Text style={[styles.adminMenuTitle, adminSubTab === icon.key && styles.adminMenuTitleActive]}>
                 {icon.label}
               </Text>
+              <View style={[styles.circleArrow, adminSubTab === icon.key && styles.circleArrowActive]}>
+                <Text style={[styles.circleArrowText, adminSubTab === icon.key && styles.circleArrowTextActive]}>›</Text>
+              </View>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         <ScrollView style={styles.content}>
           {/* نظرة عامة */}
@@ -1384,6 +1435,8 @@ export default function App() {
                     ['allocations', 'المخصصات'],
                     ['maintenanceTypes', 'أنواع الصيانة'],
                     ['punctureServices', 'خدمات البنشر'],
+                    ['oilUnits', 'وحدات الزيوت'],
+                    ['clients', 'العملاء'],
                     ['tripRegions', 'مناطق الرحلات']
                   ] as [keyof CodeCategories | 'prices', string][]
                 ).map(([key, label]) => (
@@ -1401,7 +1454,7 @@ export default function App() {
 
               {codingSubTab === 'prices' ? (
                 <View>
-                  <Text style={styles.cardTitle}>تعديل الأسعار</Text>
+                  <Text style={styles.cardTitle}>تكويد الأسعار (وسعر اللتر للوقود)</Text>
                   {Object.keys(itemPrices).map(key => (
                     <View key={key} style={styles.card}>
                       {editingPriceKey === key ? (
@@ -1648,7 +1701,8 @@ export default function App() {
     'زيوت',
     'إطارات',
     'بطاريات',
-    'صيانة وقطع غيار',
+    'صيانة',
+    'قطع غيار',
     'بنشر'
   ];
 
@@ -1667,9 +1721,7 @@ export default function App() {
       <View style={styles.header}>
         <Text style={styles.headerLogo}>🅜</Text>
         <Text style={styles.headerTitle}>{currentTab === 'my_requests' ? 'الرئيسية' : (userTabs.find(t => t.key === currentTab)?.label || 'الرئيسية')}</Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={styles.logoutText}>خروج</Text>
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.greetingCard}>
@@ -1722,12 +1774,14 @@ export default function App() {
             </View>
 
             <View style={styles.card}>
-              <TextInput
-                style={styles.input}
-                placeholder="رقم العملية"
-                value={reqProcessNo}
-                onChangeText={setReqProcessNo}
-              />
+              {serviceSubTab !== 'زيوت' && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="رقم العملية"
+                  value={reqProcessNo}
+                  onChangeText={setReqProcessNo}
+                />
+              )}
 
               {serviceSubTab === 'وقود' && (
                 <View>
@@ -1759,11 +1813,31 @@ export default function App() {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.readOnlyLabel}>سعر اللتر</Text>
+                    <Text style={styles.readOnlyValue}>{getSelectedUnitPrice() || 'يظهر تلقائياً من التكويدات'}</Text>
+                  </View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="الكمية باللتر"
+                    value={reqQuantity}
+                    onChangeText={handleQuantityChange}
+                    keyboardType="numeric"
+                  />
+                  <View style={styles.totalBox}>
+                    <Text style={styles.totalLabel}>القيمة</Text>
+                    <Text style={styles.totalValue}>{reqPriceAmount || '0'}</Text>
+                  </View>
                 </View>
               )}
 
               {serviceSubTab === 'زيوت' && (
                 <View>
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.readOnlyLabel}>رقم العملية</Text>
+                    <Text style={styles.readOnlyValue}>{getNextOilProcessNumber()}</Text>
+                  </View>
+
                   <Text style={styles.cardLine}>نوع الزيت:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {codes.oils.map(o => (
@@ -1778,11 +1852,36 @@ export default function App() {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
+
+                  <TouchableOpacity
+                    style={styles.selectField}
+                    onPress={() => setOilUnitModalVisible(true)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.selectFieldArrow}>⌄</Text>
+                    <Text style={[styles.selectFieldText, !reqOilUnit && styles.selectFieldPlaceholder]}>
+                      {reqOilUnit ? `الكمية: ${reqOilUnit}` : 'الكمية: اختر علبة / جالون / دبة'}
+                    </Text>
+                  </TouchableOpacity>
+
                   <TextInput
                     style={styles.input}
+                    placeholder="عدد الوحدات"
+                    value={reqQuantity}
+                    onChangeText={handleQuantityChange}
+                    keyboardType="numeric"
+                  />
+
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.readOnlyLabel}>السعر</Text>
+                    <Text style={styles.readOnlyValue}>{getSelectedUnitPrice() || 'يظهر تلقائياً من التكويدات'}</Text>
+                  </View>
+
+                  <TextInput
+                    style={[styles.input, styles.readOnlyInput]}
                     placeholder="العداد السابق"
                     value={reqPrevOdometer}
-                    onChangeText={setReqPrevOdometer}
+                    editable={false}
                     keyboardType="numeric"
                   />
                   <TextInput
@@ -1792,7 +1891,30 @@ export default function App() {
                     onChangeText={setReqCurrentOdometer}
                     keyboardType="numeric"
                   />
-                  <Text style={styles.cardLine}>المسافة المقطوعة: {reqDistanceTraveled}</Text>
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.readOnlyLabel}>المسافة المقطوعة</Text>
+                    <Text style={styles.readOnlyValue}>{reqDistanceTraveled}</Text>
+                  </View>
+
+                  <Text style={styles.cardLine}>اسم العميل:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {codes.clients.map(client => (
+                      <TouchableOpacity
+                        key={client}
+                        style={[styles.chip, reqClient === client && styles.chipActive]}
+                        onPress={() => setReqClient(client)}
+                      >
+                        <Text style={[styles.chipText, reqClient === client && styles.chipTextActive]}>
+                          {client}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  <View style={styles.totalBox}>
+                    <Text style={styles.totalLabel}>الإجمالي</Text>
+                    <Text style={styles.totalValue}>{reqPriceAmount || '0'}</Text>
+                  </View>
                 </View>
               )}
 
@@ -1848,7 +1970,7 @@ export default function App() {
                 </View>
               )}
 
-              {serviceSubTab === 'صيانة وقطع غيار' && (
+              {serviceSubTab === 'صيانة' && (
                 <View>
                   <Text style={styles.cardLine}>نوع الصيانة:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1864,7 +1986,12 @@ export default function App() {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                  <Text style={styles.cardLine}>القطعة (اختياري):</Text>
+                </View>
+              )}
+
+              {serviceSubTab === 'قطع غيار' && (
+                <View>
+                  <Text style={styles.cardLine}>قطعة الغيار:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {codes.spareParts.map(sp => (
                       <TouchableOpacity
@@ -1900,15 +2027,22 @@ export default function App() {
                 </View>
               )}
 
-              <TextInput
-                style={styles.input}
-                placeholder="الكمية"
-                value={reqQuantity}
-                onChangeText={handleQuantityChange}
-                keyboardType="numeric"
-              />
+              {serviceSubTab !== 'وقود' && serviceSubTab !== 'زيوت' && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="الكمية"
+                  value={reqQuantity}
+                  onChangeText={handleQuantityChange}
+                  keyboardType="numeric"
+                />
+              )}
 
-              <Text style={styles.cardLine}>القيمة الإجمالية: {reqPriceAmount || '0'}</Text>
+              {serviceSubTab !== 'وقود' && serviceSubTab !== 'زيوت' && (
+                <View style={styles.totalBox}>
+                  <Text style={styles.totalLabel}>القيمة الإجمالية</Text>
+                  <Text style={styles.totalValue}>{reqPriceAmount || '0'}</Text>
+                </View>
+              )}
 
               <TouchableOpacity style={styles.attachButton} onPress={openAttachmentOptions}>
                 <Text style={styles.attachButtonText}>
@@ -2047,7 +2181,7 @@ export default function App() {
               <View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow}>
                   {(
-                    ['وقود', 'زيوت', 'صيانة وقطع غيار', 'إطارات', 'بطاريات', 'رحلة'] as RequestType[]
+                    ['وقود', 'زيوت', 'صيانة', 'قطع غيار', 'إطارات', 'بطاريات', 'رحلة'] as RequestType[]
                   ).map(t => (
                     <TouchableOpacity
                       key={t}
@@ -2072,6 +2206,8 @@ export default function App() {
                     {!!r.priceAmount && (
                       <Text style={styles.cardLine}>الإجمالي: {r.priceAmount}</Text>
                     )}
+                    {!!r.client && <Text style={styles.cardLine}>العميل: {r.client}</Text>}
+                    {!!r.oilUnit && <Text style={styles.cardLine}>وحدة الزيت: {r.oilUnit}</Text>}
                     {!!r.notes && <Text style={styles.cardLine}>ملاحظات: {r.notes}</Text>}
                   </View>
                 ))}
@@ -2080,7 +2216,7 @@ export default function App() {
               <View>
                 <Text style={styles.sectionTitle}>التقرير الإجمالي</Text>
                 {(
-                  ['وقود', 'صيانة وقطع غيار', 'إطارات', 'بطاريات'] as RequestType[]
+                  ['وقود', 'صيانة', 'قطع غيار', 'إطارات', 'بطاريات'] as RequestType[]
                 ).map(t => {
                   const list = getRequestsByType(t, false);
                   return (
@@ -2094,7 +2230,7 @@ export default function App() {
                 <View style={styles.card}>
                   <Text style={styles.cardTitleBold}>
                     الإجمالي الكلي:{' '}
-                    {(['وقود', 'صيانة وقطع غيار', 'إطارات', 'بطاريات'] as RequestType[]).reduce(
+                    {(['وقود', 'صيانة', 'قطع غيار', 'إطارات', 'بطاريات'] as RequestType[]).reduce(
                       (acc, t) => acc + sumAmount(getRequestsByType(t, false)),
                       0
                     )}
@@ -2194,6 +2330,39 @@ export default function App() {
       </View>
 
       {/* نافذة اختيار مصدر الصورة */}
+      <Modal
+        visible={oilUnitModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOilUnitModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>اختر وحدة الكمية</Text>
+            {codes.oilUnits.map(unit => (
+              <TouchableOpacity
+                key={unit}
+                style={[styles.modalOption, reqOilUnit === unit && styles.modalOptionActive]}
+                onPress={() => {
+                  setReqOilUnit(unit);
+                  setOilUnitModalVisible(false);
+                }}
+              >
+                <Text style={[styles.modalOptionText, reqOilUnit === unit && styles.modalOptionTextActive]}>
+                  {unit}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setOilUnitModalVisible(false)}
+            >
+              <Text style={styles.modalCancelText}>إلغاء</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={attachmentModalVisible}
         transparent
@@ -2487,6 +2656,143 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 10
   },
+  headerSpacer: { width: 42 },
+  loginCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 }
+  },
+  loginInput: {
+    borderWidth: 1.5,
+    borderColor: '#BDBDBD',
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    marginVertical: 7,
+    textAlign: 'right',
+    backgroundColor: '#F4F4F4',
+    color: '#222',
+    fontSize: 15
+  },
+  loginButton: {
+    backgroundColor: COLOR_PRIMARY,
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 9
+  },
+  adminGreetingCard: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: '#EFEFEF',
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    marginBottom: 10
+  },
+  adminMenuGrid: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 8
+  },
+  adminMenuCard: {
+    width: '48.2%',
+    minHeight: 105,
+    backgroundColor: '#EEEEEE',
+    borderRadius: 22,
+    marginBottom: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 11,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E6E6E6',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 }
+  },
+  adminMenuCardActive: { backgroundColor: '#F5F5F5', borderColor: COLOR_PRIMARY, borderWidth: 1.5 },
+  adminMenuIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8
+  },
+  adminMenuIconText: { fontSize: 23 },
+  adminMenuTitle: { flex: 1, color: '#222', fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  adminMenuTitleActive: { color: COLOR_PRIMARY },
+  readOnlyField: {
+    borderWidth: 1.5,
+    borderColor: '#C8C8C8',
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    marginVertical: 6,
+    backgroundColor: '#EAEAEA',
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  readOnlyLabel: { color: '#666', fontSize: 13, fontWeight: '700', textAlign: 'right' },
+  readOnlyValue: { color: '#222', fontSize: 15, fontWeight: '800', textAlign: 'right' },
+  readOnlyInput: { backgroundColor: '#EAEAEA', color: '#666' },
+  selectField: {
+    borderWidth: 1.5,
+    borderColor: '#BDBDBD',
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    marginVertical: 6,
+    backgroundColor: '#F0F0F0',
+    flexDirection: 'row-reverse',
+    alignItems: 'center'
+  },
+  selectFieldText: { flex: 1, textAlign: 'right', color: '#222', fontSize: 14, fontWeight: '700' },
+  selectFieldPlaceholder: { color: '#777' },
+  selectFieldArrow: { color: '#777', fontSize: 20, marginLeft: 8 },
+  totalBox: {
+    backgroundColor: '#FDEBEC',
+    borderWidth: 1,
+    borderColor: '#F2C5C8',
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    marginVertical: 7,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  totalLabel: { color: '#777', fontSize: 13, fontWeight: '700' },
+  totalValue: { color: COLOR_PRIMARY, fontSize: 17, fontWeight: '900' },
+  modalTitle: { color: '#222', fontSize: 18, fontWeight: '800', textAlign: 'right', marginBottom: 10 },
+  modalOption: { backgroundColor: '#F2F2F2', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, marginVertical: 4 },
+  modalOptionActive: { backgroundColor: '#FDEBEC', borderWidth: 1, borderColor: COLOR_PRIMARY },
+  modalOptionText: { color: '#333', fontSize: 15, fontWeight: '700', textAlign: 'right' },
+  modalOptionTextActive: { color: COLOR_PRIMARY },
+  modalCancelButton: { paddingVertical: 12, alignItems: 'center', marginTop: 5 },
+  modalCancelText: { color: '#777', fontSize: 14, fontWeight: '700' },
   versionText: { textAlign: 'center', color: '#888', fontSize: 11, marginTop: 20 },
   bottomNav: {
     position: 'absolute',
