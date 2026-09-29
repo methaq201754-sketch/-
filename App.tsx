@@ -18,16 +18,22 @@ import * as ImagePicker from 'expo-image-picker';
 
 /* =========================================================
    ATLAS FLEET APP
-   VERSION: 1.15.0 (BUILD: 26)
+   VERSION: 1.16.1 (BUILD: 27)
    ========================================================= */
 
-const APP_VERSION = '1.15.0';
-const BUILD_NUMBER = '26';
+const APP_VERSION = '1.16.1';
+const BUILD_NUMBER = '27';
 const SYNC_API_URL = 'http://192.168.1.100:3000/api/sync';
 
 /* الألوان الأساسية للتطبيق (مطابقة لهوية التطبيق: أحمر / أبيض) */
 const COLOR_PRIMARY = '#C0272D';
 const COLOR_PRIMARY_DARK = '#9E1F24';
+const COLOR_ACCENT = '#FF7A45';
+const COLOR_SUCCESS = '#16A085';
+const COLOR_INFO = '#2980B9';
+const COLOR_PURPLE = '#7B61FF';
+const COLOR_TEAL = '#00A8A8';
+const COLOR_BG = '#F4F7FB';
 
 /* أيقونات صغيرة وملونة لكل قسم */
 const SERVICE_ICONS: Record<string, string> = {
@@ -57,6 +63,15 @@ const USER_TAB_ICONS: Record<string, string> = {
   trips: '🧭',
   reports: '📈',
   settings: '⚙️'
+};
+
+const TAB_COLORS: Record<string, string> = {
+  overview: COLOR_INFO, requests: COLOR_PRIMARY, vehicles: COLOR_SUCCESS,
+  drivers: COLOR_PURPLE, link: COLOR_TEAL, coding: COLOR_ACCENT,
+  permissions: '#8E44AD', logs: '#607D8B', sync: '#00A3FF',
+  my_requests: COLOR_PRIMARY, trips: COLOR_INFO, reports: COLOR_SUCCESS, settings: '#6C63FF',
+  'وقود': '#F39C12', 'زيوت': '#795548', 'إطارات': '#34495E', 'بطاريات': '#27AE60',
+  'صيانة وقطع غيار': '#E74C3C', 'بنشر': '#9B59B6', 'رحلة': '#2980B9'
 };
 
 type Role = 'user' | 'admin';
@@ -1115,7 +1130,7 @@ export default function App() {
               style={[styles.tabButton, adminSubTab === icon.key && styles.tabButtonActive]}
               onPress={() => setAdminSubTab(icon.key)}
             >
-              <View style={styles.tabIconCircle}>
+              <View style={[styles.tabIconCircle, { backgroundColor: TAB_COLORS[icon.key] || COLOR_PRIMARY }]}>
                 <Text style={styles.tabIconText}>{ADMIN_TAB_ICONS[icon.key]}</Text>
               </View>
               <Text style={[styles.tabText, adminSubTab === icon.key && styles.tabTextActive]}>
@@ -1669,7 +1684,7 @@ export default function App() {
             style={[styles.tabButton, currentTab === t.key && styles.tabButtonActive]}
             onPress={() => setCurrentTab(t.key)}
           >
-            <View style={styles.tabIconCircle}>
+            <View style={[styles.tabIconCircle, { backgroundColor: TAB_COLORS[t.key] || COLOR_PRIMARY }]}>
               <Text style={styles.tabIconText}>{USER_TAB_ICONS[t.key]}</Text>
             </View>
             <Text style={[styles.tabText, currentTab === t.key && styles.tabTextActive]}>
@@ -1690,7 +1705,7 @@ export default function App() {
                   style={[styles.tabButton, serviceSubTab === t && styles.tabButtonActive]}
                   onPress={() => setServiceSubTab(t)}
                 >
-                  <View style={styles.tabIconCircle}>
+                  <View style={[styles.tabIconCircle, { backgroundColor: TAB_COLORS[t] || COLOR_PRIMARY }]}>
                     <Text style={styles.tabIconText}>{SERVICE_ICONS[t]}</Text>
                   </View>
                   <Text style={[styles.tabText, serviceSubTab === t && styles.tabTextActive]}>
@@ -2186,13 +2201,13 @@ export default function App() {
    ========================================================= */
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F6FA' },
+  container: { flex: 1, backgroundColor: COLOR_BG },
   loginContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   loginLogoCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FDEAEA',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#FFF1ED',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10
@@ -2204,10 +2219,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEFEF'
+    borderBottomColor: '#E8ECF3',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 }
   },
   headerLogo: { fontSize: 20, color: COLOR_PRIMARY },
   headerTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: 'bold' },
@@ -2233,27 +2254,36 @@ const styles = StyleSheet.create({
   greetingIconText: { fontSize: 18 },
   greetingTitle: { color: COLOR_PRIMARY, fontSize: 17, fontWeight: 'bold', textAlign: 'right' },
   greetingName: { color: '#222', fontSize: 14, fontWeight: 'bold', textAlign: 'right', marginTop: 2 },
-  tabsRow: { flexDirection: 'row-reverse', paddingVertical: 8, paddingHorizontal: 8 },
+  tabsRow: { flexDirection: 'row-reverse', paddingVertical: 7, paddingHorizontal: 7, backgroundColor: COLOR_BG },
   tabButton: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginHorizontal: 4,
-    borderRadius: 20,
-    backgroundColor: '#E1E4EE'
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    marginHorizontal: 3,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E7F0',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 }
   },
-  tabButtonActive: { backgroundColor: COLOR_PRIMARY },
+  tabButtonActive: { backgroundColor: COLOR_PRIMARY, borderColor: COLOR_PRIMARY },
   tabIconCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLOR_PRIMARY,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 6
+    marginLeft: 6,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  tabIconText: { fontSize: 12 },
+  tabIconText: { fontSize: 11, color: '#FFFFFF' },
   settingsIconCircle: {
     width: 28,
     height: 28,
@@ -2262,17 +2292,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  tabText: { color: '#333', fontSize: 13 },
-  tabTextActive: { color: '#fff', fontWeight: 'bold' },
-  content: { flex: 1, padding: 12 },
+  tabText: { color: '#263238', fontSize: 12, fontWeight: '600' },
+  tabTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  content: { flex: 1, paddingHorizontal: 11, paddingTop: 5, paddingBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginVertical: 8, textAlign: 'right' },
   infoLine: { fontSize: 14, marginVertical: 2, textAlign: 'right' },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     padding: 12,
     marginVertical: 6,
-    elevation: 2
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1,
+    borderColor: '#EDF0F5'
   },
   cardTitle: { fontSize: 15, fontWeight: 'bold', textAlign: 'right', marginBottom: 4 },
   cardTitleBold: { fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
@@ -2281,8 +2317,8 @@ const styles = StyleSheet.create({
   rowButtons: { flexDirection: 'row-reverse', marginTop: 8 },
   input: {
     borderWidth: 1,
-    borderColor: '#D0D3E0',
-    borderRadius: 8,
+    borderColor: '#D9DFEA',
+    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginVertical: 6,
