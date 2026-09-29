@@ -2,7 +2,7 @@
   "expo": {
     "name": "السيارات - أطلس",
     "slug": "ycpd-fleet-app",
-    "version": "1.15.0",
+    "version": "1.16.0",
     "orientation": "portrait",
     "icon": "./icon.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.atlas.fleet.ycpd",
-      "versionCode": 26,
+      "versionCode": 27,
       "adaptiveIcon": {
         "foregroundImage": "./icon.png",
         "backgroundColor": "#0d47a1"
