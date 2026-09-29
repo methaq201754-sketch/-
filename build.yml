@@ -1,4 +1,4 @@
-Name: Build Android APK
+name: Build Android APK
 
 on:
   push:
@@ -10,55 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # =====================================================
-      # 1. تحميل المشروع
-      # =====================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # =====================================================
-      # 2. إعداد Node.js
-      # =====================================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      # =====================================================
-      # 3. إعداد Java
-      # =====================================================
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      # =====================================================
-      # 4. تثبيت المكتبات
-      # =====================================================
       - name: Install dependencies
         run: npm install
 
-      # =====================================================
-      # 5. إنشاء مشروع Android نظيف
-      # =====================================================
       - name: Generate clean native Android project
         run: npx expo prebuild --clean --platform android --no-install
 
-      # =====================================================
-      # 6. بناء APK (تعديل إلى Debug لتوقيعه تلقائياً)
-      # =====================================================
-      - name: Build Android APK
+      - name: Build Android Debug APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew clean
           ./gradlew assembleDebug --no-daemon
 
-      # =====================================================
-      # 7. فحص وجود APK
-      # =====================================================
       - name: Check APK
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
@@ -74,9 +53,6 @@ jobs:
 
           ls -lh "$APK"
 
-      # =====================================================
-      # 8. حساب SHA256
-      # =====================================================
       - name: Calculate APK SHA256
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
@@ -87,9 +63,6 @@ jobs:
 
           sha256sum "$APK"
 
-      # =====================================================
-      # 9. فحص توقيع APK
-      # =====================================================
       - name: Verify APK Signature
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
@@ -110,9 +83,6 @@ jobs:
 
           "$APKSIGNER" verify --verbose "$APK"
 
-      # =====================================================
-      # 10. فحص معلومات APK
-      # =====================================================
       - name: Inspect APK
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
@@ -131,11 +101,8 @@ jobs:
           echo "APK PACKAGE INFORMATION"
           echo "========================================"
 
-          "$AAPT" dump badging "$APK" | head -n 20
+          "$AAPT" dump badging "$APK" | head -n 30
 
-      # =====================================================
-      # 11. عرض ملفات APK الناتجة
-      # =====================================================
       - name: List APK output
         run: |
           echo "========================================"
@@ -147,9 +114,6 @@ jobs:
             -name "*.apk" \
             -exec ls -lh {} \;
 
-      # =====================================================
-      # 12. رفع APK إلى GitHub
-      # =====================================================
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
