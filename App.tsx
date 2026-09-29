@@ -18,11 +18,11 @@ import * as ImagePicker from 'expo-image-picker';
 
 /* =========================================================
    ATLAS FLEET APP
-   VERSION: 1.16.1 (BUILD: 27)
+   VERSION: 1.17.0 (BUILD: 28)
    ========================================================= */
 
-const APP_VERSION = '1.16.1';
-const BUILD_NUMBER = '27';
+const APP_VERSION = '1.17.0';
+const BUILD_NUMBER = '28';
 const SYNC_API_URL = 'http://192.168.1.100:3000/api/sync';
 
 /* الألوان الأساسية للتطبيق (مطابقة لهوية التطبيق: أحمر / أبيض) */
@@ -1630,10 +1630,17 @@ export default function App() {
      ========================================================= */
 
   const userTabs = [
-    { key: 'my_requests', label: 'طلباتي' },
+    { key: 'my_requests', label: 'الرئيسية' },
     { key: 'trips', label: 'الرحلات' },
     { key: 'reports', label: 'التقارير' },
     { key: 'settings', label: 'الإعدادات' }
+  ];
+
+  const bottomNavItems = [
+    { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
+    { key: 'reports', label: 'التقارير', icon: '📈' },
+    { key: 'my_requests', label: 'الرئيسية', icon: '⌂' },
+    { key: 'trips', label: 'الرحلات', icon: '♧' }
   ];
 
   const serviceTypes: RequestType[] = [
@@ -1659,7 +1666,7 @@ export default function App() {
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
         <Text style={styles.headerLogo}>🅜</Text>
-        <Text style={styles.headerTitle}>الرئيسية</Text>
+        <Text style={styles.headerTitle}>{currentTab === 'my_requests' ? 'الرئيسية' : (userTabs.find(t => t.key === currentTab)?.label || 'الرئيسية')}</Text>
         <TouchableOpacity onPress={handleLogout}>
           <Text style={styles.logoutText}>خروج</Text>
         </TouchableOpacity>
@@ -1677,43 +1684,42 @@ export default function App() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow}>
-        {userTabs.map(t => (
-          <TouchableOpacity
-            key={t.key}
-            style={[styles.tabButton, currentTab === t.key && styles.tabButtonActive]}
-            onPress={() => setCurrentTab(t.key)}
-          >
-            <View style={[styles.tabIconCircle, { backgroundColor: TAB_COLORS[t.key] || COLOR_PRIMARY }]}>
-              <Text style={styles.tabIconText}>{USER_TAB_ICONS[t.key]}</Text>
-            </View>
-            <Text style={[styles.tabText, currentTab === t.key && styles.tabTextActive]}>
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.pageIntro}>
+        <Text style={styles.pageIntroTitle}>{currentTab === 'my_requests' ? 'الخدمات والطلبات' : userTabs.find(t => t.key === currentTab)?.label}</Text>
+        <Text style={styles.pageIntroSubtitle}>اختر الخدمة المطلوبة من القائمة أدناه</Text>
+      </View>
 
       <ScrollView style={styles.content}>
         {/* طلباتي */}
         {currentTab === 'my_requests' && (
           <View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow}>
+            <View style={styles.serviceGrid}>
               {serviceTypes.map(t => (
                 <TouchableOpacity
                   key={t}
-                  style={[styles.tabButton, serviceSubTab === t && styles.tabButtonActive]}
+                  style={[styles.serviceMenuCard, serviceSubTab === t && styles.serviceMenuCardActive]}
                   onPress={() => setServiceSubTab(t)}
+                  activeOpacity={0.85}
                 >
-                  <View style={[styles.tabIconCircle, { backgroundColor: TAB_COLORS[t] || COLOR_PRIMARY }]}>
-                    <Text style={styles.tabIconText}>{SERVICE_ICONS[t]}</Text>
+                  <View style={[styles.serviceMenuIcon, { backgroundColor: serviceSubTab === t ? '#FCEBEC' : '#F1F1F1' }]}>
+                    <Text style={styles.serviceMenuIconText}>{SERVICE_ICONS[t]}</Text>
                   </View>
-                  <Text style={[styles.tabText, serviceSubTab === t && styles.tabTextActive]}>
+                  <Text style={[styles.serviceMenuTitle, serviceSubTab === t && styles.serviceMenuTitleActive]}>
                     {t}
                   </Text>
+                  <View style={[styles.circleArrow, serviceSubTab === t && styles.circleArrowActive]}>
+                    <Text style={[styles.circleArrowText, serviceSubTab === t && styles.circleArrowTextActive]}>›</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </View>
+
+            <View style={styles.formSectionHeader}>
+              <Text style={styles.formSectionTitle}>طلب {serviceSubTab}</Text>
+              <View style={styles.formSectionIcon}>
+                <Text style={styles.formSectionIconText}>{SERVICE_ICONS[serviceSubTab]}</Text>
+              </View>
+            </View>
 
             <View style={styles.card}>
               <TextInput
@@ -2167,6 +2173,26 @@ export default function App() {
         )}
       </ScrollView>
 
+      <View style={styles.bottomNav}>
+        {bottomNavItems.map(item => (
+          <TouchableOpacity
+            key={item.key}
+            style={[styles.bottomNavItem, currentTab === item.key && styles.bottomNavItemActive]}
+            onPress={() => setCurrentTab(item.key)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.bottomNavIconCircle, currentTab === item.key && styles.bottomNavIconCircleActive]}>
+              <Text style={[styles.bottomNavIcon, currentTab === item.key && styles.bottomNavIconActive]}>
+                {item.icon}
+              </Text>
+            </View>
+            <Text style={[styles.bottomNavLabel, currentTab === item.key && styles.bottomNavLabelActive]}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* نافذة اختيار مصدر الصورة */}
       <Modal
         visible={attachmentModalVisible}
@@ -2201,197 +2227,317 @@ export default function App() {
    ========================================================= */
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLOR_BG },
-  loginContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  loginContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, backgroundColor: '#FFFFFF' },
   loginLogoCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#FFF1ED',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#FDEBEC',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10
+    marginBottom: 12
   },
-  loginLogoText: { fontSize: 30 },
-  loginBrand: { color: COLOR_PRIMARY, fontSize: 22, fontWeight: 'bold', marginBottom: 2 },
-  loginSubtitle: { color: '#888', fontSize: 13, marginBottom: 18 },
+  loginLogoText: { fontSize: 32 },
+  loginBrand: { color: COLOR_PRIMARY, fontSize: 23, fontWeight: 'bold', marginBottom: 2 },
+  loginSubtitle: { color: '#777', fontSize: 13, marginBottom: 18 },
   header: {
     flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    justifyContent: 'space-between',
+    minHeight: 64,
+    paddingHorizontal: 18,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E8ECF3',
+    borderBottomColor: '#E7E7E7',
     elevation: 3,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.07,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 }
   },
-  headerLogo: { fontSize: 20, color: COLOR_PRIMARY },
-  headerTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: 'bold' },
-  logoutText: { color: COLOR_PRIMARY, fontSize: 14, fontWeight: 'bold' },
+  headerLogo: { width: 42, color: COLOR_PRIMARY, fontSize: 22, textAlign: 'center' },
+  headerTitle: { flex: 1, color: '#111111', fontSize: 23, fontWeight: '800', textAlign: 'center' },
+  logoutText: { color: COLOR_PRIMARY, fontSize: 15, fontWeight: 'bold', width: 42, textAlign: 'center' },
   greetingCard: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#F0F1F5',
-    borderRadius: 14,
-    marginHorizontal: 12,
-    marginTop: 12,
-    padding: 14
+    backgroundColor: '#EFEFEF',
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+    marginHorizontal: 0,
+    marginTop: 0,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 }
   },
   greetingIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#E1E1E1',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12
+    marginLeft: 13
   },
-  greetingIconText: { fontSize: 18 },
-  greetingTitle: { color: COLOR_PRIMARY, fontSize: 17, fontWeight: 'bold', textAlign: 'right' },
-  greetingName: { color: '#222', fontSize: 14, fontWeight: 'bold', textAlign: 'right', marginTop: 2 },
-  tabsRow: { flexDirection: 'row-reverse', paddingVertical: 7, paddingHorizontal: 7, backgroundColor: COLOR_BG },
+  greetingIconText: { fontSize: 21 },
+  greetingTitle: { color: COLOR_PRIMARY, fontSize: 22, fontWeight: '800', textAlign: 'right' },
+  greetingName: { color: '#111111', fontSize: 18, fontWeight: '800', textAlign: 'right', marginTop: 2 },
+  pageIntro: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8, alignItems: 'flex-end' },
+  pageIntroTitle: { color: '#222', fontSize: 20, fontWeight: '800', textAlign: 'right' },
+  pageIntroSubtitle: { color: '#777', fontSize: 12, marginTop: 3, textAlign: 'right' },
+  tabsRow: { flexDirection: 'row-reverse', paddingVertical: 8, paddingHorizontal: 8, backgroundColor: '#FAFAFA' },
   tabButton: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     marginHorizontal: 3,
-    borderRadius: 18,
+    borderRadius: 20,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E7F0',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 }
+    borderColor: '#E0E0E0',
+    elevation: 1
   },
   tabButtonActive: { backgroundColor: COLOR_PRIMARY, borderColor: COLOR_PRIMARY },
   tabIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 25,
+    height: 25,
+    borderRadius: 13,
     backgroundColor: COLOR_PRIMARY,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 6,
-    justifyContent: 'center',
-    alignItems: 'center'
+    marginLeft: 6
   },
   tabIconText: { fontSize: 11, color: '#FFFFFF' },
   settingsIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FDEAEA',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F4F4F4',
     justifyContent: 'center',
     alignItems: 'center'
   },
-  tabText: { color: '#263238', fontSize: 12, fontWeight: '600' },
-  tabTextActive: { color: '#FFFFFF', fontWeight: '700' },
-  content: { flex: 1, paddingHorizontal: 11, paddingTop: 5, paddingBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginVertical: 8, textAlign: 'right' },
-  infoLine: { fontSize: 14, marginVertical: 2, textAlign: 'right' },
+  tabText: { color: '#333333', fontSize: 12, fontWeight: '600' },
+  tabTextActive: { color: '#FFFFFF', fontWeight: '800' },
+  content: { flex: 1, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 95 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', marginVertical: 9, textAlign: 'right', color: '#222' },
+  infoLine: { fontSize: 14, marginVertical: 2, textAlign: 'right', color: '#444' },
+  serviceGrid: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    paddingTop: 5,
+    paddingBottom: 7
+  },
+  serviceMenuCard: {
+    width: '48.2%',
+    minHeight: 108,
+    backgroundColor: '#EEEEEE',
+    borderRadius: 22,
+    marginBottom: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 11,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E6E6E6',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 }
+  },
+  serviceMenuCardActive: { backgroundColor: '#F5F5F5', borderColor: COLOR_PRIMARY, borderWidth: 1.5 },
+  serviceMenuIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8
+  },
+  serviceMenuIconText: { fontSize: 25 },
+  serviceMenuTitle: { flex: 1, color: '#222', fontSize: 14, fontWeight: '800', textAlign: 'right' },
+  serviceMenuTitleActive: { color: COLOR_PRIMARY },
+  circleArrow: {
+    width: 31,
+    height: 31,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: COLOR_PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4
+  },
+  circleArrowActive: { backgroundColor: COLOR_PRIMARY },
+  circleArrowText: { color: '#111', fontSize: 24, lineHeight: 25, fontWeight: '300' },
+  circleArrowTextActive: { color: '#FFFFFF' },
+  formSectionHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 4,
+    marginTop: 4,
+    marginBottom: 4
+  },
+  formSectionTitle: { color: '#222', fontSize: 19, fontWeight: '800', textAlign: 'right' },
+  formSectionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FDEBEC',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  formSectionIconText: { fontSize: 19 },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
-    marginVertical: 6,
+    borderRadius: 20,
+    padding: 14,
+    marginVertical: 7,
     elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     borderWidth: 1,
-    borderColor: '#EDF0F5'
+    borderColor: '#E5E5E5'
   },
-  cardTitle: { fontSize: 15, fontWeight: 'bold', textAlign: 'right', marginBottom: 4 },
-  cardTitleBold: { fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
-  cardLine: { fontSize: 13, color: '#444', textAlign: 'right', marginVertical: 2 },
+  cardTitle: { fontSize: 16, fontWeight: '800', textAlign: 'right', marginBottom: 5, color: '#222' },
+  cardTitleBold: { fontSize: 17, fontWeight: '800', textAlign: 'right', color: '#222' },
+  cardLine: { fontSize: 13, color: '#444', textAlign: 'right', marginVertical: 3 },
   rowBetween: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
   rowButtons: { flexDirection: 'row-reverse', marginTop: 8 },
   input: {
-    borderWidth: 1,
-    borderColor: '#D9DFEA',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: '#BDBDBD',
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
     marginVertical: 6,
     textAlign: 'right',
-    backgroundColor: '#fff'
+    backgroundColor: '#F0F0F0',
+    color: '#222',
+    fontSize: 14
   },
-  multilineInput: { minHeight: 70, textAlignVertical: 'top' },
+  multilineInput: { minHeight: 90, textAlignVertical: 'top' },
   primaryButton: {
     backgroundColor: COLOR_PRIMARY,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
     alignItems: 'center',
-    marginVertical: 6
+    marginVertical: 7,
+    elevation: 2
   },
-  primaryButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-  disabledButton: { backgroundColor: '#A0A4B8' },
+  primaryButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  disabledButton: { backgroundColor: '#A7A7A7' },
   attachButton: {
-    backgroundColor: '#E1E4EE',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#FDEBEC',
+    paddingVertical: 14,
+    borderRadius: 16,
     alignItems: 'center',
-    marginVertical: 6
+    marginVertical: 7,
+    borderWidth: 1,
+    borderColor: '#F2C5C8'
   },
-  attachButtonText: { color: COLOR_PRIMARY, fontWeight: 'bold' },
-  attachmentPreview: { width: '100%', height: 160, borderRadius: 8, marginVertical: 6 },
+  attachButtonText: { color: COLOR_PRIMARY, fontWeight: '800' },
+  attachmentPreview: { width: '100%', height: 160, borderRadius: 14, marginVertical: 6 },
   approveButton: {
     backgroundColor: '#2E9E5B',
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
     marginLeft: 8
   },
   rejectButton: {
     backgroundColor: '#C0392B',
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
     marginLeft: 8
   },
-  smallButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
+  smallButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#E1E4EE',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    backgroundColor: '#EEEEEE',
     marginHorizontal: 4,
-    marginVertical: 4
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: '#DDDDDD'
   },
-  chipActive: { backgroundColor: COLOR_PRIMARY },
+  chipActive: { backgroundColor: COLOR_PRIMARY, borderColor: COLOR_PRIMARY },
   chipText: { color: '#333', fontSize: 12 },
-  chipTextActive: { color: '#fff', fontWeight: 'bold' },
+  chipTextActive: { color: '#FFFFFF', fontWeight: 'bold' },
   editText: { color: COLOR_PRIMARY, fontWeight: 'bold', marginHorizontal: 6 },
   deleteText: { color: '#C0392B', fontWeight: 'bold', marginHorizontal: 6 },
   permOnText: { color: '#2E9E5B', fontWeight: 'bold' },
   permOffText: { color: '#C0392B', fontWeight: 'bold' },
   logoutButtonFull: {
     backgroundColor: '#C0392B',
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
     alignItems: 'center',
     marginVertical: 10
   },
   versionText: { textAlign: 'center', color: '#888', fontSize: 11, marginTop: 20 },
+  bottomNav: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 78,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -2 },
+    paddingHorizontal: 8
+  },
+  bottomNavItem: {
+    minWidth: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4
+  },
+  bottomNavItemActive: { transform: [{ scale: 1.03 }] },
+  bottomNavIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent'
+  },
+  bottomNavIconCircleActive: { backgroundColor: '#FDEBEC' },
+  bottomNavIcon: { fontSize: 22, color: '#999999' },
+  bottomNavIconActive: { color: COLOR_PRIMARY, fontSize: 24 },
+  bottomNavLabel: { color: '#999999', fontSize: 11, marginTop: 1, fontWeight: '600' },
+  bottomNavLabelActive: { color: COLOR_PRIMARY, fontWeight: '800' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center'
   },
   modalBox: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
     padding: 20,
-    width: '85%'
+    width: '88%',
+    elevation: 8
   }
 });
